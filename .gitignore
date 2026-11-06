@@ -30,6 +30,9 @@ buildNumber.properties
 .DS_Store
 Thumbs.db
 
+# 本地工具链（JDK/Maven，非项目文件）
+tools/
+
 # Logs
 *.log
 logs/

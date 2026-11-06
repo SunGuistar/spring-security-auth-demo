@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/login", "/api/csrf").permitAll()
+                .requestMatchers("/api/login", "/api/csrf", "/", "/index.html").permitAll()
                 .anyRequest().authenticated()
             )
             // Unauthenticated requests get JSON 401, never a redirect to the login page

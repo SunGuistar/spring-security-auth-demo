@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auth Demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 20px; }
+  fieldset { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 16px; padding: 16px; }
+  legend { font-size: 14px; color: #666; padding: 0 6px; }
+  label { display: block; font-size: 14px; margin-bottom: 12px; }
+  input { width: 100%; box-sizing: border-box; padding: 6px 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; }
+  button { padding: 8px 14px; border: none; border-radius: 4px; background: #2563eb; color: #fff; cursor: pointer; margin-right: 8px; }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  #result { white-space: pre-wrap; background: #f3f4f6; border-radius: 6px; padding: 12px; min-height: 24px; font-size: 13px; }
+  .error { color: #dc2626; font-size: 13px; margin: 0 0 10px; }
+  .hint { font-size: 12px; color: #888; }
+  [hidden] { display: none; }
+</style>
+</head>
+<body>
+  <h1>Spring Security 认证测试页</h1>
+
+  <fieldset>
+    <legend>1. 登录</legend>
+    <div id="loginForm">
+      <p id="loginError" class="error" hidden>用户名或密码错误</p>
+      <label>用户名 <input id="username" value="test"></label>
+      <label>密码 <input id="password" type="password" value="123456"></label>
+      <button id="btnLogin">登录</button>
+      <span class="hint">测试账号：test / 123456</span>
+    </div>
+    <button id="btnLogout" hidden>登出</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>2. 受保护接口</legend>
+    <button id="btnHello">Print Hello</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>3. 响应</legend>
+    <div id="result"></div>
+  </fieldset>
+
+<script>
+const resultBox = document.getElementById('result');
+const loginForm = document.getElementById('loginForm');
+const loginError = document.getElementById('loginError');
+const btnLogin = document.getElementById('btnLogin');
+const btnLogout = document.getElementById('btnLogout');
+const btnHello = document.getElementById('btnHello');
+
+function show(text) {
+  resultBox.textContent = text;
+}
+
+function clearResult() {
+  resultBox.textContent = '';
+}
+
+// 展示登录表单，隐藏登出按钮（未登录状态）
+function showLoginState() {
+  loginForm.hidden = false;
+  btnLogout.hidden = true;
+}
+
+// 隐藏登录表单，只展示登出按钮（已登录状态）
+function showLoggedInState() {
+  loginForm.hidden = true;
+  btnLogout.hidden = false;
+}
+
+// 每次发 POST 前都获取最新的 CSRF Token
+async function getCsrfToken() {
+  const res = await fetch('/api/csrf', { credentials: 'same-origin' });
+  const data = await res.json();
+  return data.token;
+}
+
+async function postJson(url, body) {
+  const headers = { 'X-XSRF-TOKEN': await getCsrfToken() };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    credentials: 'same-origin',
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  return res;
+}
+
+btnLogin.onclick = async () => {
+  loginError.hidden = true;
+  try {
+    const res = await postJson('/api/login', {
+      username: document.getElementById('username').value,
+      password: document.getElementById('password').value
+    });
+    if (res.ok) {
+      showLoggedInState();
+      clearResult();
+    } else if (res.status === 401) {
+      loginError.hidden = false;
+    } else {
+      console.error('登录失败，HTTP', res.status);
+    }
+  } catch (err) {
+    console.error('登录请求异常：', err);
+  }
+};
+
+btnLogout.onclick = async () => {
+  try {
+    const res = await postJson('/api/logout');
+    if (res.ok) {
+      showLoginState();
+      clearResult();
+    } else {
+      console.error('登出失败，HTTP', res.status);
+    }
+  } catch (err) {
+    console.error('登出请求异常：', err);
+  }
+};
+
+btnHello.onclick = async () => {
+  try {
+    const res = await fetch('/api/hello', { credentials: 'same-origin' });
+    if (res.status === 401) {
+      show('请先登录');
+    } else if (res.ok) {
+      // 直接展示后端返回的响应体内容，不硬编码任何文案
+      show(await res.text());
+    } else {
+      console.error('Unexpected HTTP', res.status, await res.text());
+    }
+  } catch (err) {
+    console.error('请求异常：', err);
+  }
+};
+</script>
+</body>
+</html>
